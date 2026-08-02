@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PS2Iso.Cli/PS2Iso.Cli.csproj" />
+    <Project Path="src/PS2Iso.Core/PS2Iso.Core.csproj" />
+    <Project Path="src/PS2Iso.Gui/PS2Iso.Gui.csproj" />
+  </Folder>
+</Solution>
