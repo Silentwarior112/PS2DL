@@ -477,7 +477,21 @@ public partial class Form1 : Form
         _sw = Stopwatch.StartNew();
         try
         {
-            await Task.Run(work);
+            for (;;)
+            {
+                try { await Task.Run(work); break; }
+                catch (FileInUseException ex)
+                {
+                    // Usually a stale SMB handle from a client that dropped off with the file open
+                    // (e.g. a PS2 switched off mid-game): offer to close it, then run again.
+                    if (!ConfirmRelease(ex.Path)) throw;
+                    var (closed, message) = await Task.Run(() => SmbOpenFiles.Close(ex.Path));
+                    Log(message);
+                    if (!closed) throw;
+                    Log("Retrying…");
+                    _sw.Restart();
+                }
+            }
             _sw.Stop();
             SetStatus($"{name} complete  ·  {_sw.Elapsed:mm\\:ss}", Ui.Ok);
             Log($"── done in {_sw.Elapsed:mm\\:ss} ──");
@@ -541,4 +555,13 @@ public partial class Form1 : Form
 
     private void Warn(string msg) =>
         MessageBox.Show(this, msg, "PS2 ISO Tool", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+    private bool ConfirmRelease(string path) =>
+        MessageBox.Show(this,
+            $"{Path.GetFileName(path)} is in use.\n\n" +
+            "If an SMB client disconnected without closing it (e.g. a PS2 switched off mid-game), " +
+            "Windows keeps that dead session's handle open until the connection times out.\n\n" +
+            "Close the SMB handles on this file and retry? This needs administrator rights, and " +
+            "any client still using the file loses access to it.",
+            "PS2 ISO Tool", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes;
 }

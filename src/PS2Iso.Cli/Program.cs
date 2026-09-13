@@ -21,6 +21,8 @@ try
             return Spanning(Req(args, 1, "input iml"), Req(args, 2, "output iml"), args);
         case "verify":
             return Verify(Req(args, 1, "image A"), Req(args, 2, "image B"));
+        case "unlock":
+            return Unlock(Req(args, 1, "file path"));
         default:
             Console.Error.WriteLine($"Unknown command '{args[0]}'.");
             PrintUsage();
@@ -30,6 +32,8 @@ try
 catch (Exception ex)
 {
     Console.Error.WriteLine($"error: {ex.Message}");
+    if (ex is FileInUseException locked)
+        Console.Error.WriteLine($"hint: 'ps2iso unlock \"{locked.Path}\"' closes stale SMB handles on it (needs admin).");
     if (Environment.GetEnvironmentVariable("PS2ISO_DEBUG") == "1")
         Console.Error.WriteLine(ex);
     return 2;
@@ -55,6 +59,8 @@ static void PrintUsage()
                           [--layer-break N]           DVD-9 (one volume across both layers).
                                                       Replace payload file(s) first, then build.
           ps2iso verify <a.iso> <b.iso>               Byte-compare two images
+          ps2iso unlock <file>                        Close stale SMB-server handles on a file
+                                                      (a client dropped off with it open); admin
         """);
 }
 
@@ -159,4 +165,11 @@ static int Verify(string a, string b)
         Console.WriteLine($"  diff @ LBA {d.FirstLba:N0} x{d.Count:N0} (first byte offset {d.FirstByteOffset})");
     Console.WriteLine($"DIFFERENT ({diffs.Count} run(s) shown)");
     return 3;
+}
+
+static int Unlock(string path)
+{
+    var (closed, message) = SmbOpenFiles.Close(path);
+    Console.WriteLine(message);
+    return closed ? 0 : 1;
 }

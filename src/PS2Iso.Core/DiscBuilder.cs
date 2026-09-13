@@ -18,8 +18,8 @@ public sealed class DiscBuilder
 
     public void Build(string outputPath, Action<string>? log = null)
     {
-        using var outStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write,
-            FileShare.None, 1 << 20);
+        using var outStream = FileInUseException.Guard(outputPath, p => new FileStream(p,
+            FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20));
         Build(outStream, log);
     }
 
@@ -215,7 +215,7 @@ public sealed class DiscBuilder
     {
         if (file.SourcePath is null)
             throw new InvalidOperationException($"File {file.FullPath} has no source path.");
-        using var src = File.OpenRead(file.SourcePath);
+        using var src = FileInUseException.Guard(file.SourcePath, File.OpenRead);
         if (src.Length != file.Size)
             throw new InvalidDataException(
                 $"{file.FullPath}: source is {src.Length} bytes but spec says {file.Size}.");
